@@ -1,0 +1,48 @@
+stages:
+  - prepare_version
+  - build
+  # - deploy_registry_secret
+  - deploy
+
+variables:
+  BASE_VERSION: "1.0"
+
+prepare_version:
+  stage: prepare_version
+  script:
+    - VERSION="$BASE_VERSION-$CI_PIPELINE_IID"
+    - echo "VERSION=$VERSION" > .env
+  artifacts:
+    paths: 
+      - .env
+
+image_build:
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  stage: build
+  dependencies:
+    - prepare_version
+  before_script:
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+  script:
+    - source ./.env
+    - DOCKER_IMAGE_NAME=$CI_REGISTRY_IMAGE:$VERSION
+    - /kaniko/executor --dockerfile=Dockerfile --context=$(pwd) --destination=$DOCKER_IMAGE_NAME
+  rules:
+    - if: $CI_COMMIT_BRANCH
+      exists:
+        - Dockerfile
+
+deploy:
+  image: alpine/helm:3
+  stage: deploy
+  dependencies:
+    - image_build
+    - prepare_version
+  script:
+    - source ./.env
+    - helm package ./app --version $VERSION
+    - helm upgrade --install my-python-app-$CI_COMMIT_REF_SLUG ./python-app-$VERSION.tgz --set image.repository=$CI_REGISTRY_IMAGE --set image.tag=$VERSION
+
+# kubectl create secret docker-registry regcred - это сделал ручками, как по мне так более правильно, чем создавать/удалять каждый запуск

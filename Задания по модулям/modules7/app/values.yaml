@@ -1,0 +1,4 @@
+image:
+  repository: k8scourse.gitlab.yandexcloud.net/gaiser/module7
+  tag: "latest"
+
