@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod # упростим работу, используя манифест под, а не Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  containers:
+  - name: frontend
+    image: alpine:3.20.3
+    command: ["sh", "-c", "sleep infinity"] # запустим alpine c бесконечным sleep
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: backend
+  labels:
+    app: backend
+spec:
+  containers:
+  - name: backend
+    image: nginx:latest  # nginx с параметрами по умолчанию
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend # имя сервиса
+spec:
+  selector:
+    app: backend # в данном примере Service будет перенаправлять трафик к поду backend по селектору
+  ports:
+    - protocol: TCP
+      port: 80        # порт, на котором сервис доступен
+      targetPort: 80   # порт в контейнере, на который перенаправляется трафик
+  type: ClusterIP     # сервис доступен только внутри кластера

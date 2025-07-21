@@ -1,0 +1,391 @@
+# Введение в Helm и управление пакетами в Kubernetes
+
+## Описание
+Helm — это пакетный менеджер для Kubernetes, который упрощает развертывание и управление приложениями в кластере. Он позволяет использовать готовые шаблоны и устанавливать приложения с учетом разных окружений, а также поддерживает обновление и откат версий.
+
+## Основные возможности Helm
+- Шаблонизация манифестов Kubernetes.
+- Упаковка ресурсов в Helm-чарты.
+- Управление версиями приложений.
+- Поддержка репозиториев чартов.
+- Автоматизация развертывания приложений.
+
+## Компоненты Helm
+- **Chart** — описание приложения в виде пакета.
+- **Release** — установленный экземпляр чарта.
+- **Repository** — хранилище чартов.
+- **Values.yaml** — конфигурационный файл с переменными.
+
+
+## Работа с репозиториями Helm
+```bash
+helm repo add stable https://charts.helm.sh/stable
+helm repo list
+helm repo update
+helm search repo <repo_name>
+```
+
+## Установка чарта
+```bash
+helm install <release_name> <chart_path> --values custom-values.yaml
+```
+
+## Обновление релиза
+```bash
+helm upgrade <release_name> <chart_path>
+```
+
+## Откат релиза
+```bash
+helm rollback <release_name> <revision>
+```
+
+## Удаление релиза
+```bash
+helm delete <release_name>
+```
+
+## Создание чарта
+```bash
+helm create <chart_name>
+```
+
+### Структура чарта
+```
+<chart_name>/
+    .helmignore
+    Chart.yaml
+    values.yaml
+    templates/
+        _helpers.tpl
+        <manifest>.yaml
+```
+
+## Просмотр информации о релизе
+```bash
+helm list
+helm get all <release_name>
+```
+
+## Проверка синтаксиса чарта
+```bash
+helm lint ./<chart_name>
+helm template ./<chart_name>
+```
+
+## Упаковка чарта в архив
+```bash
+helm package ./<chart_name>
+```
+
+## Шаблонизация в Helm
+- `{{ .Values.<var_name> }}` — переменные из values.yaml.
+- `{{ .Chart.<var_name> }}` — переменные из Chart.yaml.
+- `{{ .Release.Name }}` — имя релиза.
+# Описание приложения Podinfo и создание Helm-чарта
+
+## Введение
+В данном документе рассматривается процесс создания Helm-чарта для приложения **Podinfo**. Этот подход позволяет упростить управление конфигурацией Kubernetes-ресурсов, обеспечивая гибкость, версионность и возможность повторного использования.
+
+## Проблемы статических манифестов
+Использование статических YAML-манифестов для Kubernetes имеет несколько недостатков:
+1. **Сложность поддержки в разных средах** – при развертывании в различных окружениях приходится редактировать YAML-файлы вручную.
+2. **Необходимость изменений в нескольких манифестах** – если требуется изменить порт приложения, нужно править Deployment, Service и Ingress.
+3. **Отсутствие версионности** – нельзя отслеживать изменения конфигурации и выполнять откат.
+
+Helm решает эти проблемы, предоставляя возможность шаблонизации манифестов и управления версиями конфигураций.
+
+## Создание Helm-чарта
+Для создания чарта используется команда:
+```sh
+helm create podinfo
+```
+
+### Структура чарта
+После выполнения команды создается структура каталога **podinfo**:
+```
+podinfo/
+├── Chart.yaml       # Метаданные чарта
+├── values.yaml      # Значения по умолчанию
+├── .helmignore      # Игнорируемые файлы
+├── templates/       # Шаблоны манифестов
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   ├── ingress.yaml
+│   ├── configmap.yaml
+│   ├── _helpers.tpl
+│   ├── tests/
+│   └── NOTES.txt
+```
+
+### Конфигурация Chart.yaml
+Пример **Chart.yaml**:
+```yaml
+apiVersion: v2
+name: podinfo
+version: 1.0.0
+description: Helm chart for simple podinfo application
+appVersion: "6.6.3"
+```
+
+### Конфигурация values.yaml
+```yaml
+replicas: 1
+arguments:
+  - --port=9000
+  - --level=debug
+image:
+  repository: ghcr.io/stefanprodan/podinfo
+  tag: "6.6.3"
+env:
+  PODINFO_UI_MESSAGE: Yandex Praktikum Podinfo
+  PODINFO_UI_LOGO: https://yastatic.net/q/logoaas/v2/Яндекс.svg
+  PODINFO_UI_COLOR: "#ffdb4d"
+resources:
+  limits:
+    memory: 256Mi
+    cpu: 100m
+  requests:
+    cpu: 50m
+    memory: 64Mi
+service:
+  port: 9000
+ingress:
+  enabled: true
+  host: podinfo-helm.kube.praktikum-services.tech
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "http01-clusterissuer"
+  tls: true
+```
+
+## Создание шаблонов
+Пример **templates/service.yaml**:
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: {{ .Chart.Name }}
+```
+
+Пример **templates/configmap.yaml**:
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}
+data:
+  {{- toYaml .Values.env | nindent 2 }}
+```
+
+Пример **templates/ingress.yaml** с условиями:
+```yaml
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  annotations:
+    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls }}
+  tls:
+  - hosts:
+      - {{ .Values.ingress.host | quote }}
+    secretName: {{ .Release.Name }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}
+```
+
+## Отладка Helm-чарта
+Helm предоставляет несколько команд для отладки:
+```sh
+helm template --debug podinfo podinfo  # Генерация YAML-манифестов
+helm install --dry-run --debug podinfo podinfo  # Проверка без установки
+helm lint podinfo  # Валидация синтаксиса
+```
+
+Пример ошибки в **service.yaml**:
+```yaml
+selector:
+  app: {{ .Chart.Name } # пропущена }
+```
+Результат команды `helm template --debug podinfo podinfo`:
+```sh
+Error: parse error at (podinfo/templates/service.yaml:14): unexpected "}" in operand
+```
+
+## Упаковка чарта
+Для упаковки чарта используется команда:
+```sh
+helm package podinfo
+```
+
+# Конспект по управлению Helm-релизами
+
+Этот конспект можно использовать в качестве README для быстрого ознакомления с базовыми операциями Helm-релизов: установкой, обновлением, откатом и управлением историей.
+
+---
+
+## 1. Что такое Helm-релиз
+
+Helm-релиз – это конкретный экземпляр развёрнутого чарта в Kubernetes. Каждый релиз имеет:
+- Уникальное имя и namespace.
+- Версию чарта и набор конфигурационных значений (values).
+- Историю изменений (ревизии), которая создаётся при установке, обновлении или откате.
+
+---
+
+## 2. Установка Helm-релиза
+
+### Команда установки
+```bash
+helm install <имя_релиза> <путь_до_чарта>
+```
+Пример:
+```bash
+helm install podinfo ./podinfo
+```
+После установки вы получите вывод с информацией о релизе: имя, время установки, namespace, статус и ревизия.
+
+### Задание имени релиза
+- **Вручную:** Укажите имя прямо в команде.
+- **Автогенерация:** Используйте флаг `--generate-name`, тогда имя будет вида `<Chart.Name>-<временная метка>`.
+  ```bash
+  helm install --generate-name ./podinfo
+  ```
+- **Шаблон имени:** С помощью флага `--name-template` можно задать шаблон для имени (например, с использованием случайной строки):
+  ```bash
+  helm install --name-template "cute-pod-{{ randAlpha 9 | lower }}" ./podinfo
+  ```
+
+### Работа с namespace
+Если namespace, в котором хотите установить релиз, отсутствует, можно создать его автоматически с флагом:
+```bash
+helm install --create-namespace <имя_релиза> <путь_до_чарта>
+```
+
+---
+
+## 3. Обновление релиза
+
+### Обновление конфигурации и чарта
+При изменении параметров или версии чарта используется команда:
+```bash
+helm upgrade <имя_релиза> <путь_до_чарта>
+```
+Процесс обновления включает:
+- Получение текущего состояния релиза.
+- Загрузку нового чарта.
+- Слияние текущих и новых значений конфигурации (через файлы values.yaml или флаг `--set`).
+- Рендеринг и сравнение манифестов.
+- Применение изменений в Kubernetes.
+
+### Удобство для CI/CD
+Команда `helm upgrade --install` позволяет за один шаг установить релиз, если он отсутствует, или обновить его, если уже существует:
+```bash
+helm upgrade --install <имя_релиза> <путь_до_чарта>
+```
+
+---
+
+## 4. Ревизии и история релизов
+
+### Ревизия
+Каждая операция (установка, обновление, откат) создаёт новую ревизию – запись состояния релиза. Например, при установке ревизия равна 1, а после обновления увеличивается до 2, 3 и т.д.
+
+### Просмотр истории
+Команда `helm history <имя_релиза>` показывает:
+- Номер ревизии
+- Дату и время обновления
+- Статус (deployed, superseded, uninstalled и т.д.)
+- Имя чарта и его версию
+- Описание действия (установка, обновление, откат)
+
+Также информация о релизе хранится в Kubernetes-объекте (Secret или ConfigMap) с именем вроде:
+```
+sh.helm.release.v1.<имя_релиза>.v<номер_ревизии>
+```
+
+---
+
+## 5. Откат релиза
+
+### Команда отката
+Для возврата к предыдущей версии используется команда:
+```bash
+helm rollback <имя_релиза> <номер_ревизии>
+```
+Процесс отката:
+- Извлечение сохранённых манифестов и значений.
+- Применение предыдущей конфигурации.
+- Создание новой ревизии, фиксирующей откат.
+
+> **Важно:** Если откатываемая ревизия содержит ошибки в манифестах, Kubernetes не применит их, и процесс отката завершится с ошибкой, оставляя релиз в текущем состоянии.
+
+---
+
+## 6. Удаление релиза
+
+### Команда удаления
+```bash
+helm uninstall <имя_релиза>
+```
+По умолчанию команда удаляет все созданные ресурсы и историю релиза.  
+Для сохранения истории используется флаг `--keep-history`:
+```bash
+helm uninstall --keep-history <имя_релиза>
+```
+
+---
+
+## 7. Расширенные флаги Helm
+
+### Флаг `--wait`
+- **Назначение:** Ожидание, пока все ресурсы станут готовыми.
+- **Применение:** Используется, чтобы убедиться, что приложение полностью запущено перед завершением команды.
+
+### Флаг `--atomic`
+- **Назначение:** Автоматический откат релиза при неудаче установки или обновления.
+- **Применение:** Если происходит ошибка, Helm возвращает предыдущую рабочую версию.
+
+### Флаг `--force`
+- **Назначение:** Принудительное обновление релиза, которое удаляет и создаёт ресурсы заново.
+- **Применение:** Используется в случаях, когда необходимо принудительно обновить существующие объекты.
+
+### Флаг `--cleanup-on-fail`
+- **Назначение:** Очистка ресурсов, созданных до возникновения ошибки.
+- **Применение:** Автоматически удаляет частично созданные объекты, если установка или обновление завершились неудачно.
+
+### Пример комплексной команды:
+```bash
+helm upgrade --install podinfo ./podinfo --wait --atomic --force --cleanup-on-fail
+```
+Эта команда гарантирует, что:
+- Релиз будет установлен или обновлён.
+- Helm дождётся полной готовности ресурсов.
+- В случае ошибки произойдёт автоматический откат.
+- При ошибке ненужные ресурсы будут очищены.
+---

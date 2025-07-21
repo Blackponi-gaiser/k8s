@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviews-v2
+  labels:
+    app: reviews
+    version: v2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reviews
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: reviews
+        version: v2
+    spec:
+      containers:
+      - name: reviews
+        image: docker.io/istio/examples-bookinfo-reviews-v2:1.20.1
+        ports:
+        - containerPort: 9080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reviews-v3
+  labels:
+    app: reviews
+    version: v3
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reviews
+      version: v3
+  template:
+    metadata:
+      labels:
+        app: reviews
+        version: v3
+    spec:
+      containers:
+      - name: reviews
+        image: docker.io/istio/examples-bookinfo-reviews-v3:1.20.1
+        ports:
+        - containerPort: 9080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reviews-v3
+  labels:
+    app: reviews
+spec:
+  ports:
+  - port: 9080
+    name: http
+  selector:
+    app: reviews
+    version: v3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reviews-v2
+  labels:
+    app: reviews
+spec:
+  ports:
+  - port: 9080
+    name: http
+  selector:
+    app: reviews
+    version: v2
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: reviews
+  annotations:
+    cert-manager.io/cluster-issuer: "http01-clusterissuer"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+      - reviews-user64r3ad1k64rk4e9r.kube.praktikum-services.tech
+    secretName: reviews-secret
+  rules:
+  - host: reviews-user64r3ad1k64rk4e9r.kube.praktikum-services.tech
+    http:
+      paths:
+      - path: /v1(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: reviews
+            port:
+              number: 9080
+      - path: /v2(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: reviews-v2
+            port:
+              number: 9080
+      - path: /v3(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: reviews-v3
+            port:
+              number: 9080

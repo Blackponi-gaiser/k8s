@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: quiz-pod-4
+spec:
+  containers:
+  - name: env-test-container
+    image: alpine:latest
+    command: ["/bin/sh", "-c"]
+    args:
+    - |
+      echo "App status: $APP_STATUS";
+      tail -f /dev/null
+    env:
+    - name: APP_STATUS
+      value: "running"
+    - name: APP_STATUS
+      value: "stopped"

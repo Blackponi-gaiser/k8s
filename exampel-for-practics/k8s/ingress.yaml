@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bomberman
+  annotations:
+    cert-manager.io/cluster-issuer: "http01-clusterissuer"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+      - user64r3ad1k64rk4e9r-bomberman.k8sfree.praktikum-services.tech
+    secretName: domain-name-secret
+  rules:
+  - host: user64r3ad1k64rk4e9r-bomberman.k8sfree.praktikum-services.tech
+    http:
+      paths:
+      - backend:
+          service:
+            name: bomberman
+            port:
+              number: 8000
+        path: /
+        pathType: Prefix 

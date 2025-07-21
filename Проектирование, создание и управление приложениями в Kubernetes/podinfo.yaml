@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  labels:
+    app: podinfo
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: podinfo
+  template:
+    metadata:
+      labels:
+        app: podinfo
+    spec:
+      containers:
+        - name: podinfo
+          image: ghcr.io/stefanprodan/podinfo:6.7.0
+          command:
+            - ./podinfo
+            - '--port=9000'
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+          volumeMounts:
+          - name: data
+            mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: podinfo-pvc 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+spec:
+  selector:
+    app: podinfo
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 9000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: podinfo-pvc
+spec:
+  storageClassName: yc-network-hdd
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nginx-logs
+spec:
+  storageClassName: yc-network-hdd
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: registry.k8s.io/nginx-slim:0.21
+    ports:
+    - containerPort: 80
+      name: http
