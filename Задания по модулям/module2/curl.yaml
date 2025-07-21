@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: healthcheck
+spec:
+  schedule: "*/2 * * * *"  
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never 
+          containers:
+          - name: curl-check
+            image: curlimages/curl:8.10.1
+            command:
+              - "sh"
+              - "-c"
+              - "curl --head --fail nginx:8080"

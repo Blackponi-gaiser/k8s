@@ -1,0 +1,48 @@
+# количество реплик приложения
+replicas: 1
+
+# аргументы запуска podinfo
+arguments:
+  - --port=9000
+  - --level=debug
+
+# параметры Docker-образа
+image:
+  repository: ghcr.io/stefanprodan/podinfo
+  tag: "6.6.3"
+
+# переменные окружения
+env:
+  PODINFO_UI_MESSAGE: Yandex Praktikum Podinfo
+  PODINFO_UI_LOGO: https://yastatic.net/q/logoaas/v2/Яндекс.svg
+  PODINFO_UI_COLOR: "#ffdb4d"
+
+# настройки CPU и RAM
+resources:
+  limits:
+    memory: 256Mi
+    cpu: 100m
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# номер порта
+service:
+  port: 9000
+# параметры Ingress
+ingress:
+  enabled: true
+  # при самостоятельной практике используйте значение вида podinfo-<имя вашего неймспейса>.kube.praktikum-services.tech  
+  host: podinfo-user64r3ad1k64rk4e9r.kube.praktikum-services.tech  
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: "http01-clusterissuer"
+  tls: true
+
+redis:
+  enabled: true
+
+hpa:
+  minReplicas: 1
+  maxReplicas: 3
+  value: 60

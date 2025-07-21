@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-gen
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: load-gen
+  template:
+      metadata:
+        labels:
+          app: load-gen
+      spec:
+        containers:
+        - name: load-gen
+          image: alpine
+          command: ["/bin/sh"]
+          args:
+          - "-c"
+          - |
+            apk add --no-cache curl && \
+            curl -o /usr/local/bin/hey https://hey-release.s3.us-east-2.amazonaws.com/hey_linux_amd64 && \
+            chmod +x /usr/local/bin/hey && \
+            sleep infinity

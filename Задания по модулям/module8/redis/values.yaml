@@ -1,0 +1,41 @@
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7.0.7"
+    pullPolicy: IfNotPresent
+
+  useConfigMap: true  
+
+  livenessProbe:
+    initialDelaySeconds: 5
+    timeoutSeconds: 5
+
+  readinessProbe:
+    initialDelaySeconds: 5
+    timeoutSeconds: 5
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 32Mi
+
+  persistence:
+    enabled: false
+    mountPath: /var/lib/redis
+    existingClaim: ""
+    subPath: ""
+
+service:
+  type: ClusterIP
+  port: 6379
+
+config:
+  enabled: true 
+  maxmemory: "64mb"
+  maxmemoryPolicy: "allkeys-lru"
+  save: ""
+  appendonly: "no"

@@ -1,0 +1,11 @@
+apiVersion: v2
+name: podinfo 
+description: Helm chart for simple podinfo application
+version: 1.0.0
+appVersion: "6.6.3" 
+
+dependencies:
+  - name: redis
+    version: "0.1.0"
+    repository: "file://../redis"
+    condition: redis.enabled
